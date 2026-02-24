@@ -3,7 +3,17 @@
 # Usage: gdz
 
 # Shared search logic for gdz/gdv
+# Writes selected files (absolute paths) to a temp file, sets _GD_RESULT_FILE
 _gd_select_files() {
+  # Must be in a git repo
+  if ! git rev-parse --is-inside-work-tree &>/dev/null; then
+    echo "Not a git repository." >&2
+    return 1
+  fi
+
+  local repo_root
+  repo_root=$(git rev-parse --show-toplevel)
+
   # Detect base branch
   local base_branch=""
   for b in main master develop; do
@@ -17,23 +27,26 @@ _gd_select_files() {
   local commit_list
   commit_list=$({
     [[ -n "$base_branch" ]] && echo "[branch] All changes since $base_branch"
-    git log --oneline -20
+    git log --oneline --no-merges -20
   })
 
-  local selected_commits
-  selected_commits=$(echo "$commit_list" | fzf --multi \
+  local tmpfile_commits=$(mktemp)
+  echo "$commit_list" | fzf --multi \
     --header "Tab: multi-select | Select commit(s) to see changed files" \
     --preview='
       line={};
       if [[ "$line" == "\[branch\]"* ]]; then
-        git diff --stat $(git merge-base '"$base_branch"' HEAD)..HEAD
+        git diff --stat $(git merge-base '"$base_branch"' HEAD)..HEAD 2>/dev/null
       else
         hash=$(echo {} | awk "{print \$1}");
-        git show --stat --format="%h %s%n%an | %ar" "$hash"
+        git show --stat --format="%h %s%n%an | %ar" "$hash" 2>/dev/null
       fi
-    ')
+    ' > "$tmpfile_commits"
 
-  [[ -z "$selected_commits" ]] && return 1
+  if [[ ! -s "$tmpfile_commits" ]]; then
+    rm -f "$tmpfile_commits"
+    return 1
+  fi
 
   # Step 2: Collect changed files from selected commits
   local files=()
@@ -44,31 +57,41 @@ _gd_select_files() {
       local hash="${line%% *}"
       files+=(${(f)"$(git diff-tree --no-commit-id --name-only -r "$hash" 2>/dev/null)"})
     fi
-  done <<< "$selected_commits"
+  done < "$tmpfile_commits"
+  rm -f "$tmpfile_commits"
 
-  # Deduplicate and filter to existing files
+  # Deduplicate, resolve to absolute paths, filter to existing files
   files=(${(u)files})
   local existing=()
   for f in "${files[@]}"; do
-    [[ -f "$f" ]] && existing+=("$f")
+    local fullpath="$repo_root/$f"
+    [[ -f "$fullpath" ]] && existing+=("$fullpath")
   done
 
   if [[ ${#existing[@]} -eq 0 ]]; then
-    echo "No changed files found."
+    echo "No changed files found." >&2
     return 1
   fi
 
   # Step 3: File selection with fzf
+  _GD_RESULT_FILE=$(mktemp)
   printf '%s\n' "${existing[@]}" | fzf --multi \
     --header "Tab: multi-select | Ctrl-A: select all" \
     --bind "ctrl-a:select-all" \
-    --preview="bat --color=always --style=numbers {} 2>/dev/null || cat {}"
+    --preview="bat --color=always --style=numbers {} 2>/dev/null || cat {}" \
+    > "$_GD_RESULT_FILE"
+
+  if [[ ! -s "$_GD_RESULT_FILE" ]]; then
+    rm -f "$_GD_RESULT_FILE"
+    return 1
+  fi
 }
 
 gdz() {
-  local selected
-  selected=$(_gd_select_files)
-  [[ -z "$selected" ]] && return 1
+  _gd_select_files || return 1
 
-  echo "$selected" | xargs zed
+  while read -r f; do
+    zed "$f"
+  done < "$_GD_RESULT_FILE"
+  rm -f "$_GD_RESULT_FILE"
 }

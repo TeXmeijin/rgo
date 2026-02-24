@@ -4,14 +4,13 @@
 # Requires: gdz.zsh (for _gd_select_files)
 
 gdv() {
-  local selected
-  selected=$(_gd_select_files)
-  [[ -z "$selected" ]] && return 1
+  _gd_select_files || return 1
 
   local files=()
   while read -r f; do
     files+=("$f")
-  done <<< "$selected"
+  done < "$_GD_RESULT_FILE"
+  rm -f "$_GD_RESULT_FILE"
 
   nvim -p "${files[@]}"
 }
