@@ -1,45 +1,66 @@
 # rgo
 
-ripgrep + fzf + **open** — search across multi-repo workspaces, pick with fzf, and open in your editor at the matching line.
+A collection of fzf-powered commands that search your codebase and open results in your editor. Designed for multi-repo workspaces but works in single repos too.
 
-## The Problem
+## Commands
 
-When working in a workspace that contains multiple git repositories side by side, `rg` only respects the top-level `.gitignore`. Sub-repositories' `.gitignore` files are ignored, flooding results with `node_modules`, `vendor`, build artifacts, etc.
+### `rgz` / `rgv` — Search by content (ripgrep)
 
-Using `--no-ignore-vcs` disables **all** `.gitignore` files, which isn't what you want either.
+Search file contents across repositories, pick with fzf, open at the matching line.
 
-## How rgo solves it
+```bash
+rgz "pattern"              # search → fzf → Zed (at matching line)
+rgv "pattern"              # search → fzf → Neovim (tabs, at matching line)
 
-rgo runs ripgrep **inside each sub-repository independently**, so each repo's own `.gitignore` is properly respected. Results are piped through fzf for interactive selection, then opened in your editor at the exact matching line.
+rgz "TODO" -i              # case insensitive
+rgz "pattern" -g '*.tsx'   # only .tsx files
+rgv "className" -t js      # only JavaScript files
+```
 
-It also works inside a single repo — it auto-detects the workspace structure.
+**Multi-repo aware**: In a workspace with multiple git repos side by side, `rg` ignores sub-repositories' `.gitignore` files. `rgz`/`rgv` run ripgrep inside each sub-repo independently, so each repo's own `.gitignore` is properly respected.
 
 ```
 workspace/
-├── repo-a/          # ← rg runs here (repo-a/.gitignore respected)
-│   ├── .git/
-│   ├── .gitignore
-│   └── src/
-├── repo-b/          # ← rg runs here (repo-b/.gitignore respected)
-│   ├── .git/
-│   ├── .gitignore
-│   └── src/
-└── notes.md         # ← also searched (top-level files)
+├── repo-a/       # ← searched independently (.gitignore respected)
+├── repo-b/       # ← searched independently (.gitignore respected)
+└── notes.md      # ← also searched
 ```
 
-## Included Commands
+### `gdz` / `gdv` — Browse by git commits
 
-| Command | Editor | Open style |
-|---------|--------|------------|
-| `rgz`   | [Zed](https://zed.dev) | Each selected file opens at `file:line` |
-| `rgv`   | [Neovim](https://neovim.io) | All selected files open in tabs (`nvim -p`) |
+Browse recent commits, select changed files, and open them in your editor.
+
+```bash
+gdz                        # commits → files → Zed
+gdv                        # commits → files → Neovim (tabs)
+```
+
+**Flow:**
+
+1. Recent 20 commits are shown (plus a "branch diff" option at the top)
+2. Select one or more commits with `Tab`, or pick the branch option to get all changes since the base branch
+3. Changed files from those commits are shown
+4. Select files with `Tab` (or `Ctrl-A` to select all)
+5. `Enter` to open in your editor
+
+The base branch (`main`, `master`, or `develop`) is auto-detected.
+
+## Summary
+
+| Command | Source  | Editor | Open style |
+|---------|---------|--------|------------|
+| `rgz`   | ripgrep | Zed    | Each file at `file:line` |
+| `rgv`   | ripgrep | Neovim | All files in tabs |
+| `gdz`   | git log | Zed    | All files |
+| `gdv`   | git log | Neovim | All files in tabs |
 
 ## Requirements
 
-- [ripgrep](https://github.com/BurntSushi/ripgrep)
 - [fzf](https://github.com/junegunn/fzf)
+- [ripgrep](https://github.com/BurntSushi/ripgrep) (for `rgz`/`rgv`)
 - [Zed](https://zed.dev) and/or [Neovim](https://neovim.io)
 - zsh
+- [bat](https://github.com/sharkdp/bat) (optional, for file preview in `gdz`/`gdv`)
 
 ## Installation
 
@@ -47,33 +68,27 @@ Source only the ones you need:
 
 ```bash
 # Add to your .zshrc
-source /path/to/rgo/rgz.zsh   # for Zed
-source /path/to/rgo/rgv.zsh   # for Neovim
+source /path/to/rgo/rgz.zsh   # ripgrep → Zed
+source /path/to/rgo/rgv.zsh   # ripgrep → Neovim
+source /path/to/rgo/gdz.zsh   # git diff → Zed (also provides gdv's dependency)
+source /path/to/rgo/gdv.zsh   # git diff → Neovim
 ```
 
 Or copy to your zsh functions directory:
 
 ```bash
-cp rgz.zsh rgv.zsh ~/.zsh/functions/
+cp *.zsh ~/.zsh/functions/
 ```
 
-## Usage
+> **Note:** `gdv.zsh` depends on `_gd_select_files` defined in `gdz.zsh`. Make sure `gdz.zsh` is loaded first.
 
-```bash
-# Basic search
-rgz "pattern"          # search → fzf → Zed
-rgv "pattern"          # search → fzf → Neovim
+## fzf Controls
 
-# With ripgrep options (passed through as-is)
-rgz "pattern" -g '*.tsx'    # only .tsx files
-rgv "TODO" -i               # case insensitive
-rgz "className" -t js       # only JavaScript files
-
-# fzf controls
-# - Enter: open selected
-# - Tab: toggle multi-select (rgz/rgv both support multi-select)
-# - Preview pane shows matches highlighted in context
-```
+| Key     | Action |
+|---------|--------|
+| `Enter` | Confirm selection |
+| `Tab`   | Toggle multi-select |
+| `Ctrl-A`| Select all (in file selection) |
 
 ## License
 
