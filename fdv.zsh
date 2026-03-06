@@ -10,7 +10,7 @@ fdv() {
   for d in */; do
     if [[ -d "$d/.git" ]]; then
       has_subrepos=true
-      results+=(${(f)"$(fd --type f "$@" "$d" 2>/dev/null)"})
+      results+=(${(f)"$(fd --type f --search-path "$d" "$@" 2>/dev/null)"})
     fi
   done
 
