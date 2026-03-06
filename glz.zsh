@@ -1,10 +1,10 @@
-# gdz - git diff + fzf + zed
+# glz - git log + fzf + zed
 # Browse recent commits (or branch diff), pick changed files with fzf, open in Zed.
-# Usage: gdz
+# Usage: glz
 
-# Shared search logic for gdz/gdv
-# Writes selected files (absolute paths) to a temp file, sets _GD_RESULT_FILE
-_gd_select_files() {
+# Shared search logic for glz/glv
+# Writes selected files (absolute paths) to a temp file, sets _GL_RESULT_FILE
+_gl_select_files() {
   # Must be in a git repo
   if ! git rev-parse --is-inside-work-tree &>/dev/null; then
     echo "Not a git repository." >&2
@@ -74,24 +74,24 @@ _gd_select_files() {
   fi
 
   # Step 3: File selection with fzf
-  _GD_RESULT_FILE=$(mktemp)
+  _GL_RESULT_FILE=$(mktemp)
   printf '%s\n' "${existing[@]}" | fzf --multi \
     --header "Tab: multi-select | Ctrl-A: select all" \
     --bind "ctrl-a:select-all" \
     --preview="bat --color=always --style=numbers {} 2>/dev/null || cat {}" \
-    > "$_GD_RESULT_FILE"
+    > "$_GL_RESULT_FILE"
 
-  if [[ ! -s "$_GD_RESULT_FILE" ]]; then
-    rm -f "$_GD_RESULT_FILE"
+  if [[ ! -s "$_GL_RESULT_FILE" ]]; then
+    rm -f "$_GL_RESULT_FILE"
     return 1
   fi
 }
 
-gdz() {
-  _gd_select_files || return 1
+glz() {
+  _gl_select_files || return 1
 
   while read -r f; do
     zed "$f"
-  done < "$_GD_RESULT_FILE"
-  rm -f "$_GD_RESULT_FILE"
+  done < "$_GL_RESULT_FILE"
+  rm -f "$_GL_RESULT_FILE"
 }

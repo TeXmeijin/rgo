@@ -26,13 +26,28 @@ workspace/
 └── notes.md      # ← also searched
 ```
 
-### `gdz` / `gdv` — Browse by git commits
+### `fdz` / `fdv` — Search by filename (fd)
+
+Search filenames across repositories, pick with fzf, open in your editor.
+
+```bash
+fdz                        # all files → fzf → Zed
+fdv                        # all files → fzf → Neovim (tabs)
+
+fdz tsx                    # only filenames matching "tsx"
+fdz -e tsx                 # only .tsx extension
+fdz component -e tsx       # filenames matching "component" with .tsx extension
+```
+
+**Multi-repo aware**: Same as `rgz`/`rgv` — runs `fd` inside each sub-repo independently so each repo's `.gitignore` is respected. Solves the problem where plain `fd` skips sub-repositories due to `.git/info/exclude` or nested `.git` directories.
+
+### `glz` / `glv` — Browse by git log
 
 Browse recent commits, select changed files, and open them in your editor.
 
 ```bash
-gdz                        # commits → files → Zed
-gdv                        # commits → files → Neovim (tabs)
+glz                        # commits → files → Zed
+glv                        # commits → files → Neovim (tabs)
 ```
 
 **Flow:**
@@ -51,16 +66,19 @@ The base branch (`main`, `master`, or `develop`) is auto-detected.
 |---------|---------|--------|------------|
 | `rgz`   | ripgrep | Zed    | Each file at `file:line` |
 | `rgv`   | ripgrep | Neovim | All files in tabs |
-| `gdz`   | git log | Zed    | All files |
-| `gdv`   | git log | Neovim | All files in tabs |
+| `fdz`   | fd      | Zed    | Each file |
+| `fdv`   | fd      | Neovim | All files in tabs |
+| `glz`   | git log | Zed    | All files |
+| `glv`   | git log | Neovim | All files in tabs |
 
 ## Requirements
 
 - [fzf](https://github.com/junegunn/fzf)
 - [ripgrep](https://github.com/BurntSushi/ripgrep) (for `rgz`/`rgv`)
+- [fd](https://github.com/sharkdp/fd) (for `fdz`/`fdv`)
 - [Zed](https://zed.dev) and/or [Neovim](https://neovim.io)
 - zsh
-- [bat](https://github.com/sharkdp/bat) (optional, for file preview in `gdz`/`gdv`)
+- [bat](https://github.com/sharkdp/bat) (optional, for file preview in `fdz`/`fdv`/`glz`/`glv`)
 
 ## Installation
 
@@ -70,8 +88,10 @@ Source only the ones you need:
 # Add to your .zshrc
 source /path/to/rgo/rgz.zsh   # ripgrep → Zed
 source /path/to/rgo/rgv.zsh   # ripgrep → Neovim
-source /path/to/rgo/gdz.zsh   # git diff → Zed (also provides gdv's dependency)
-source /path/to/rgo/gdv.zsh   # git diff → Neovim
+source /path/to/rgo/fdz.zsh   # fd → Zed
+source /path/to/rgo/fdv.zsh   # fd → Neovim
+source /path/to/rgo/glz.zsh   # git log → Zed (also provides glv's dependency)
+source /path/to/rgo/glv.zsh   # git log → Neovim
 ```
 
 Or copy to your zsh functions directory:
@@ -80,7 +100,7 @@ Or copy to your zsh functions directory:
 cp *.zsh ~/.zsh/functions/
 ```
 
-> **Note:** `gdv.zsh` depends on `_gd_select_files` defined in `gdz.zsh`. Make sure `gdz.zsh` is loaded first.
+> **Note:** `glv.zsh` depends on `_gl_select_files` defined in `glz.zsh`. Make sure `glz.zsh` is loaded first.
 
 ## fzf Controls
 
